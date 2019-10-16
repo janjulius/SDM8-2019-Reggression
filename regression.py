@@ -1,15 +1,6 @@
 import paho.mqtt.client as mqtt
-from enum import Enum
 
 group_no = 8#input("Geef groep nr: ")
-
-class Payload(Enum):
-    off = 0
-    on = 1
-
-#class component_type:
-    
-    
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
@@ -18,13 +9,29 @@ def on_connect(client, userdata, flags, rc):
     # Subscribing in on_connect() means that if we lose the connection and
     # reconnect then subscriptions will be renewed.
 
-    topic=f'{group_no}/motorised/north/0/0/traffic_light/0'
+    topic=f'{group_no}/#'
     client.subscribe(topic)
-    print("Connected with " + topic)
+    print(f'Connected with group {group_no}')
 
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
     print(msg.topic+" "+str(msg.payload))
+
+    split_topics = msg.topic.split('/', -1)
+    print("ey")
+    split_topics = filter(None, split_topics)
+    split_topics_length = len(split_topics)
+    print(split_topics_length)
+    
+    if split_topics_length == 5:
+        print('valid topic length')
+        # ok
+    elif split_topics_length == 6:
+        print('valid topic length')
+        # ok
+    else:
+        print('invalid topic length')
+    
 
 client = mqtt.Client()
 client.on_connect = on_connect
