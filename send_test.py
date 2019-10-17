@@ -1,6 +1,6 @@
 import paho.mqtt.client as mqtt #import the client1
 
-topic="8/motorised/0/0/traffic_light/0/"
+topic="8/motorised/1/14/traffic_light/0/"
 broker_address="91.121.165.36"
 print("creating new instance")
 client = mqtt.Client("P1") #create new instance

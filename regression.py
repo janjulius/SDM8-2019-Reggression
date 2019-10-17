@@ -3,18 +3,18 @@ import paho.mqtt.client as mqtt
 group_no = 8#input("Geef groep nr: ")
 
 class Part:
-    def __init__(self, name, next):
-        self.name = name
+    def __init__(self, value, next):
+        self.value = value
         self.next = next
 
 class Id_Part:
-    def __init__(self, max, next):
+    def __init__(self, max, next, subs):
         self.max = max
         self.next = next
         self.subs = subs
 
 class Sub:
-    def __init__(self, parent, max, next):
+    def __init__(self, parent, max):
         self.parent = parent
         self.max = max
 
@@ -32,37 +32,45 @@ def is_multi_part(val):
     return type(val) == list and len(list(val)) >= 0 and type(val[0]) == Part
 
 def is_valid_part(split_topic, part):
-    return part.name == split_topic
+    return part.value == split_topic
 
 def check_valid_part(split_topic, current_part, has_sub):
-        if is_multi_part(current_part):
-            for current_multi_part in current_part:
-                if is_valid_part(split_topic, current_multi_part)
-                    print("valid part")
-                    return current_multi_part.next
-            print("invalid part")
-            return None
+    print(f'topic: {split_topic} - type: {type(current_part).__name__}')
+          
+    if is_multi_part(current_part):
+        for current_multi_part in current_part:
+            if is_valid_part(split_topic, current_multi_part):
+                print("OK: valid multi part")
+                return current_multi_part.next
+        print("ERROR: invalid part")
+        return None
                     
-        elif is_id_part(current_part):
-            if int(split_topic) <= current_part.max:
-                if has_sub:
-                    # check for subs
-                    if current_part.subs == None:
-                        print("no subs for part, continue")
-                    else:
-                        # TODO get sub.. return new part with sub max.
-                        return None
-                else
-                    print("no subs in topic, continue")
+    elif is_id_part(current_part):
+        if int(split_topic) <= current_part.max:
+            print("OK: valid id_part")
+            if has_sub:
+                # check for subs
+                if current_part.subs == None:
+                    print("OK: no subs, continue")
                     return current_part.next
-                
-        elif is_part(current_part):
-            if is_valid_part(split_topic, current_part):
-                print("valid part")
-                return current_part.next
+                else:
+                    for sub in current_part.subs:
+                        if sub.parent == int(split_topic):
+                            print("OK: continue to sub")
+                            return Id_Part(sub.max, current_part.next, None)
+                    print("ERROR: invalid sub")
+                    return None
             else:
-                print("invalid part")
-                return None
+                print("OK: no subs in topic, continue")
+                return current_part.next
+                
+    elif is_part(current_part):
+        if is_valid_part(split_topic, current_part):
+            print("OK: valid part")
+            return current_part.next
+        else:
+            print("ERROR: invalid part")
+            return None
                 
             
     
@@ -95,15 +103,14 @@ def on_message(client, userdata, msg):
     has_sub = split_topics_length == 5
     
     if split_topics_length == 4 or split_topics_length == 5:
-        print(f'valid topic length {split_topics_length}')
+        print(f'OK: valid topic length: {split_topics_length}, has_sub: {has_sub}')
         current_part = valid_parts
         
         for split_topic in split_topics:
-            print(split_topic)
-            current_part = check_valid_part(split_topic, current_part, has_sub)       
-            # ok
+            current_part = check_valid_part(split_topic, current_part, has_sub)
+            
     else:
-        print('invalid topic length')
+        print('ERROR: invalid topic length')
     
 
 client = mqtt.Client()
