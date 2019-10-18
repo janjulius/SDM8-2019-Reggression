@@ -34,6 +34,12 @@ def is_multi_part(val):
 def is_valid_part(split_topic, part):
     return part.value == split_topic
 
+def intTryParse(value):
+    try:
+        return int(value), True
+    except ValueError:
+        return value, False
+
 def check_valid_part(split_topic, current_part, has_sub):
     print(f'topic: {split_topic} - type: {type(current_part).__name__}')
           
@@ -41,41 +47,49 @@ def check_valid_part(split_topic, current_part, has_sub):
         for current_multi_part in current_part:
             if is_valid_part(split_topic, current_multi_part):
                 print("OK: valid multi part")
-                return current_multi_part.next
+                return current_multi_part.next, True
         print("ERROR: invalid part")
-        return None
+        return None, False
                     
     elif is_id_part(current_part):
-        if int(split_topic) <= current_part.max:
-            print("OK: valid id_part")
-            if has_sub:
-                # check for subs
-                if current_part.subs == None:
-                    print("OK: no subs, continue")
-                    return current_part.next
+        split_topic, success = intTryParse(split_topic)
+        if success:
+            if int(split_topic) <= current_part.max:
+                print("OK: valid id_part")
+                if has_sub:
+                    # check for subs
+                    if current_part.subs == None:
+                        print("OK: no subs, continue")
+                        return current_part.next, True
+                    else:
+                        for sub in current_part.subs:
+                            if sub.parent == int(split_topic):
+                                print("OK: continue to sub")
+                                return Id_Part(sub.max, current_part.next, None), True
+                        print("ERROR: invalid sub")
+                        return None, False
                 else:
-                    for sub in current_part.subs:
-                        if sub.parent == int(split_topic):
-                            print("OK: continue to sub")
-                            return Id_Part(sub.max, current_part.next, None)
-                    print("ERROR: invalid sub")
-                    return None
+                    print("OK: no subs in topic, continue")
+                    return current_part.next, True
             else:
-                print("OK: no subs in topic, continue")
-                return current_part.next
+                print("ERROR: invalid id_part")
+                return None, False
+        else:
+           print("ERROR: invalid int in id_part")
+           return None, False
                 
     elif is_part(current_part):
         if is_valid_part(split_topic, current_part):
             print("OK: valid part")
-            return current_part.next
+            return current_part.next, True
         else:
             print("ERROR: invalid part")
-            return None
+            return None, False
                 
             
     
-motorised_traffic_light = Part("traffic_light", Id_Part(0, None, None))
-motorised_sensor = Part("sensor", Id_Part(1, None, None))
+motorised_traffic_light = Part("traffic_light", Id_Part(0, Id_Part(3, None, None), None))
+motorised_sensor = Part("sensor", Id_Part(1, Id_Part(1, None, None), None))
 motorised_id_part = Id_Part(8, [motorised_traffic_light, motorised_sensor], [Sub(1, 1), Sub(5, 1)])
 motorised_part = Part("motorised", motorised_id_part)
 
@@ -104,11 +118,13 @@ def on_message(client, userdata, msg):
     
     if split_topics_length == 4 or split_topics_length == 5:
         print(f'OK: valid topic length: {split_topics_length}, has_sub: {has_sub}')
+        split_topics.append(msg.payload.decode('utf-8'))
         current_part = valid_parts
         
         for split_topic in split_topics:
-            current_part = check_valid_part(split_topic, current_part, has_sub)
-            
+            current_part, success = check_valid_part(split_topic, current_part, has_sub)
+            if not success:
+                break
     else:
         print('ERROR: invalid topic length')
     
