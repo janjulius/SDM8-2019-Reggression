@@ -41,12 +41,10 @@ def intTryParse(value):
         return value, False
 
 def check_valid_part(split_topic, current_part, has_sub):
-    #print(f'topic: {split_topic} - type: {type(current_part).__name__}')
           
     if is_multi_part(current_part):
         for current_multi_part in current_part:
             if is_valid_part(split_topic, current_multi_part):
-                #print("OK: valid multi part")
                 return current_multi_part.next, True
         print("ERROR: invalid part")
         return None, False
@@ -55,21 +53,16 @@ def check_valid_part(split_topic, current_part, has_sub):
         split_topic, success = intTryParse(split_topic)
         if success:
             if int(split_topic) <= current_part.max:
-                #print("OK: valid number_part")
                 if has_sub:
-                    # check for subs
                     if current_part.subs == None:
-                        #print("OK: no subs, continue")
                         return current_part.next, True
                     else:
                         for sub in current_part.subs:
                             if sub.parent == int(split_topic):
-                                #print("OK: continue to sub")
                                 return Number_Part(sub.max, current_part.next, None), True
                         print("ERROR: invalid sub")
                         return None, False
                 else:
-                    #print("OK: no subs in topic, continue")
                     return current_part.next, True
             else:
                 print("ERROR: invalid number_part")
@@ -80,7 +73,6 @@ def check_valid_part(split_topic, current_part, has_sub):
                 
     elif is_part(current_part):
         if is_valid_part(split_topic, current_part):
-            #print("OK: valid part")
             return current_part.next, True
         else:
             print("ERROR: invalid part")
@@ -89,9 +81,6 @@ def check_valid_part(split_topic, current_part, has_sub):
 def get_component(name, max_id, max_payload):
     return Part(name, Number_Part(max_id, Number_Part(max_payload, None, None), None))
             
-# /traffic_light/0/0
-# /sensor/1/0
-# /component_type/component_id/payload
 sensor_motorised = get_component("sensor", 1, 1)
 sensor = get_component("sensor", 0, 1)
 
@@ -144,7 +133,6 @@ def on_message(client, userdata, msg):
     has_vessel_or_track = "vessel" in msg.topic or "track" in msg.topic
     
     if split_topics_length == 4 or (split_topics_length == 5 and not has_vessel_or_track):
-        #print(f'OK: valid topic length: {split_topics_length}, has_sub: {has_sub}')
         split_topics.append(msg.payload.decode('utf-8'))
         current_part = valid_parts
         
@@ -162,9 +150,7 @@ client = mqtt.Client()
 client.on_connect = on_connect
 client.on_message = on_message
 
-
-broker = "test.mosquitto.org"
-#broker = "91.121.165.36"
+broker = "91.121.165.36"
 client.connect(broker, 1883, 60)
 
 # Blocking call that processes network traffic, dispatches callbacks and
