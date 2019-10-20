@@ -7,7 +7,7 @@ class Part:
         self.value = value
         self.next = next
 
-class Id_Part:
+class Number_Part:
     def __init__(self, max, next, subs):
         self.max = max
         self.next = next
@@ -22,8 +22,8 @@ class Sub:
 def is_sub(val):
     return type(val) == Sub
 
-def is_id_part(val):
-    return type(val) == Id_Part
+def is_number_part(val):
+    return type(val) == Number_Part
 
 def is_part(val):
     return type(val) == Part
@@ -41,59 +41,82 @@ def intTryParse(value):
         return value, False
 
 def check_valid_part(split_topic, current_part, has_sub):
-    print(f'topic: {split_topic} - type: {type(current_part).__name__}')
+    #print(f'topic: {split_topic} - type: {type(current_part).__name__}')
           
     if is_multi_part(current_part):
         for current_multi_part in current_part:
             if is_valid_part(split_topic, current_multi_part):
-                print("OK: valid multi part")
+                #print("OK: valid multi part")
                 return current_multi_part.next, True
         print("ERROR: invalid part")
         return None, False
                     
-    elif is_id_part(current_part):
+    elif is_number_part(current_part):
         split_topic, success = intTryParse(split_topic)
         if success:
             if int(split_topic) <= current_part.max:
-                print("OK: valid id_part")
+                #print("OK: valid number_part")
                 if has_sub:
                     # check for subs
                     if current_part.subs == None:
-                        print("OK: no subs, continue")
+                        #print("OK: no subs, continue")
                         return current_part.next, True
                     else:
                         for sub in current_part.subs:
                             if sub.parent == int(split_topic):
-                                print("OK: continue to sub")
-                                return Id_Part(sub.max, current_part.next, None), True
+                                #print("OK: continue to sub")
+                                return Number_Part(sub.max, current_part.next, None), True
                         print("ERROR: invalid sub")
                         return None, False
                 else:
-                    print("OK: no subs in topic, continue")
+                    #print("OK: no subs in topic, continue")
                     return current_part.next, True
             else:
-                print("ERROR: invalid id_part")
+                print("ERROR: invalid number_part")
                 return None, False
         else:
-           print("ERROR: invalid int in id_part")
+           print("ERROR: invalid int in number_part")
            return None, False
                 
     elif is_part(current_part):
         if is_valid_part(split_topic, current_part):
-            print("OK: valid part")
+            #print("OK: valid part")
             return current_part.next, True
         else:
             print("ERROR: invalid part")
             return None, False
-                
-            
-    
-motorised_traffic_light = Part("traffic_light", Id_Part(0, Id_Part(3, None, None), None))
-motorised_sensor = Part("sensor", Id_Part(1, Id_Part(1, None, None), None))
-motorised_id_part = Id_Part(8, [motorised_traffic_light, motorised_sensor], [Sub(1, 1), Sub(5, 1)])
-motorised_part = Part("motorised", motorised_id_part)
 
-valid_parts = [motorised_part]
+def get_component(name, max_id, max_payload):
+    return Part(name, Number_Part(max_id, Number_Part(max_payload, None, None), None))
+            
+# /traffic_light/0/0
+# /sensor/1/0
+# /component_type/component_id/payload
+sensor_motorised = get_component("sensor", 1, 1)
+sensor = get_component("sensor", 0, 1)
+
+traffic_light = get_component("traffic_light", 0, 3)
+warning_light = get_component("warning_light", 0, 1)
+
+barrier_vessel = get_component("barrier", 7, 1)
+barrier_track = get_component("barrier", 8, 1)
+
+motorised_number_part = Number_Part(8, [traffic_light, sensor_motorised], [Sub(1, 1), Sub(5, 1)])
+motorised_part = Part("motorised", motorised_number_part)
+
+foot_number_part = Number_Part(7, [traffic_light, sensor], [Sub(0, 1), Sub(1, 1), Sub(4, 2), Sub(5, 2)])
+foot_part = Part("foot", foot_number_part)
+
+cycle_number_part = Number_Part(5, [traffic_light, sensor_motorised], [Sub(3, 1)])
+cycle_part = Part("cycle", cycle_number_part)
+
+vessel_number_part = Number_Part(1, [traffic_light, sensor_motorised, warning_light, barrier_vessel], None)
+vessel_part = Part("vessel", vessel_number_part)
+
+track_number_part = Number_Part(1, [traffic_light, sensor_motorised, warning_light, barrier_track], None)
+track_part = Part("track", track_number_part)
+
+valid_parts = [motorised_part, foot_part, cycle_part, vessel_part, track_part]
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
@@ -112,12 +135,16 @@ def on_message(client, userdata, msg):
 
     split_topics = msg.topic.split('/', -1)
     split_topics = list(filter(None, split_topics))
+    
     del split_topics[0]
     split_topics_length = len(split_topics)
-    has_sub = split_topics_length == 5
     
-    if split_topics_length == 4 or split_topics_length == 5:
-        print(f'OK: valid topic length: {split_topics_length}, has_sub: {has_sub}')
+    has_sub = split_topics_length == 5
+
+    has_vessel_or_track = "vessel" in msg.topic or "track" in msg.topic
+    
+    if split_topics_length == 4 or (split_topics_length == 5 and not has_vessel_or_track):
+        #print(f'OK: valid topic length: {split_topics_length}, has_sub: {has_sub}')
         split_topics.append(msg.payload.decode('utf-8'))
         current_part = valid_parts
         
@@ -125,6 +152,8 @@ def on_message(client, userdata, msg):
             current_part, success = check_valid_part(split_topic, current_part, has_sub)
             if not success:
                 break
+
+        print("OK: valid topic")
     else:
         print('ERROR: invalid topic length')
     
@@ -133,7 +162,10 @@ client = mqtt.Client()
 client.on_connect = on_connect
 client.on_message = on_message
 
-client.connect("91.121.165.36", 1883, 60)
+
+broker = "test.mosquitto.org"
+#broker = "91.121.165.36"
+client.connect(broker, 1883, 60)
 
 # Blocking call that processes network traffic, dispatches callbacks and
 # handles reconnecting.
