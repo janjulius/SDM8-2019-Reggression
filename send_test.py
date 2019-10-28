@@ -1,8 +1,10 @@
 import paho.mqtt.client as mqtt #import the client1
 
-topic="8/foot/0/sensor/0/"
-broker = "test.mosquitto.org"
-#broker = "91.121.165.36"
+group_no = input("Group no: ")
+
+topic=f"{group_no}/foot/0/sensor/0/"
+#broker = "test.mosquitto.org"
+broker = "62.210.180.72"
 print("creating new instance")
 client = mqtt.Client("P1") #create new instance
 print("connecting to broker")

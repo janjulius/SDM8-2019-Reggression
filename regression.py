@@ -1,6 +1,6 @@
 import paho.mqtt.client as mqtt
 
-group_no = 8#input("Geef groep nr: ")
+group_no = input("Group no: ")
 
 class Part:
     def __init__(self, value, next):
@@ -17,7 +17,6 @@ class Sub:
     def __init__(self, parent, max):
         self.parent = parent
         self.max = max
-
 
 def is_sub(val):
     return type(val) == Sub
@@ -46,7 +45,7 @@ def check_valid_part(split_topic, current_part, has_sub):
         for current_multi_part in current_part:
             if is_valid_part(split_topic, current_multi_part):
                 return current_multi_part.next, True
-        print("ERROR: invalid part")
+        print("ERROR: invalid part, " + current_part)
         return None, False
                     
     elif is_number_part(current_part):
@@ -60,22 +59,22 @@ def check_valid_part(split_topic, current_part, has_sub):
                         for sub in current_part.subs:
                             if sub.parent == int(split_topic):
                                 return Number_Part(sub.max, current_part.next, None), True
-                        print("ERROR: invalid sub")
+                        print("ERROR: invalid number, " + current_part)
                         return None, False
                 else:
                     return current_part.next, True
             else:
-                print("ERROR: invalid number_part")
+                print("ERROR: invalid number, " + current_part)
                 return None, False
         else:
-           print("ERROR: invalid int in number_part")
+           print("ERROR: invalid int in number, " + current_part)
            return None, False
                 
     elif is_part(current_part):
         if is_valid_part(split_topic, current_part):
             return current_part.next, True
         else:
-            print("ERROR: invalid part")
+            print("ERROR: invalid part, " + current_part)
             return None, False
 
 def get_component(name, max_id, max_payload):
@@ -116,7 +115,7 @@ def on_connect(client, userdata, flags, rc):
 
     topic=f'{group_no}/#'
     client.subscribe(topic)
-    print(f'Connected with group {group_no}')
+    print(f'Connected to {topic} with group {group_no}')
 
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
@@ -135,13 +134,15 @@ def on_message(client, userdata, msg):
     if split_topics_length == 4 or (split_topics_length == 5 and not has_vessel_or_track):
         split_topics.append(msg.payload.decode('utf-8'))
         current_part = valid_parts
+        success = False
         
         for split_topic in split_topics:
             current_part, success = check_valid_part(split_topic, current_part, has_sub)
             if not success:
                 break
 
-        print("OK: valid topic")
+        if success:
+            print("OK: valid topic")
     else:
         print('ERROR: invalid topic length')
     
@@ -150,7 +151,7 @@ client = mqtt.Client()
 client.on_connect = on_connect
 client.on_message = on_message
 
-broker = "91.121.165.36"
+broker = "62.210.180.72"
 client.connect(broker, 1883, 60)
 
 # Blocking call that processes network traffic, dispatches callbacks and
