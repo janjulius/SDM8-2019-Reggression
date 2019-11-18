@@ -1,6 +1,6 @@
 import paho.mqtt.client as mqtt
 
-group_no = input("Group no: ")
+group_no = 8#input("Group no: ")
 
 class Part:
     def __init__(self, value, next):
@@ -13,6 +13,11 @@ class Number_Part:
         self.next = next
         self.subs = subs
 
+class Sub_Part:
+    def __init__(self, max, next):
+        self.max = max
+        self.next = next
+
 class Sub:
     def __init__(self, parent, max):
         self.parent = parent
@@ -23,6 +28,9 @@ def is_sub(val):
 
 def is_number_part(val):
     return type(val) == Number_Part
+
+def is_sub_part(val):
+    return type(val) == Sub_Part
 
 def is_part(val):
     return type(val) == Part
@@ -39,8 +47,7 @@ def intTryParse(value):
     except ValueError:
         return value, False
 
-def check_valid_part(split_topic, current_part, has_sub):
-          
+def check_valid_part(split_topic, current_part):    
     if is_multi_part(current_part):
         for current_multi_part in current_part:
             if is_valid_part(split_topic, current_multi_part):
@@ -52,20 +59,31 @@ def check_valid_part(split_topic, current_part, has_sub):
         split_topic, success = intTryParse(split_topic)
         if success:
             if int(split_topic) <= current_part.max:
-                if has_sub:
-                    if current_part.subs == None:
-                        return current_part.next, True
-                    else:
-                        for sub in current_part.subs:
-                            if sub.parent == int(split_topic):
-                                return Number_Part(sub.max, current_part.next, None), True
-                        print("ERROR: invalid number, " + current_part)
-                        return None, False
-                else:
+                if current_part.subs == None:
                     return current_part.next, True
+                else:
+                    for sub in current_part.subs:
+                        if sub.parent == int(split_topic):
+                            return Sub_Part(sub.max, current_part.next), True
+                    print("ERROR: invalid number, " + current_part)
+                    return None, False
             else:
                 print("ERROR: invalid number, " + current_part)
                 return None, False
+        else:
+           print("ERROR: invalid int in number, " + current_part)
+           return None, False
+
+    elif is_sub_part(current_part):
+        split_topic, success = intTryParse(split_topic)
+        if success:
+            if int(split_topic) <= current_part.max:
+                return current_part.next, True
+            else:
+                print("ERROR: invalid number, " + current_part)
+                return None, False
+        elif split_topic == 'NULL':
+            return current_part.next, True
         else:
            print("ERROR: invalid int in number, " + current_part)
            return None, False
@@ -76,6 +94,8 @@ def check_valid_part(split_topic, current_part, has_sub):
         else:
             print("ERROR: invalid part, " + current_part)
             return None, False
+
+
 
 def get_component(name, max_id, max_payload):
     return Part(name, Number_Part(max_id, Number_Part(max_payload, None, None), None))
@@ -124,20 +144,17 @@ def on_message(client, userdata, msg):
     split_topics = msg.topic.split('/', -1)
     split_topics = list(filter(None, split_topics))
     
-    del split_topics[0]
+    del split_topics[0] # Group no
     split_topics_length = len(split_topics)
-    
-    has_sub = split_topics_length == 5
-
-    has_vessel_or_track = "vessel" in msg.topic or "track" in msg.topic
-    
-    if split_topics_length == 4 or (split_topics_length == 5 and not has_vessel_or_track):
+        
+    if split_topics_length == 5:
         split_topics.append(msg.payload.decode('utf-8'))
         current_part = valid_parts
         success = False
         
         for split_topic in split_topics:
-            current_part, success = check_valid_part(split_topic, current_part, has_sub)
+            current_part, success = check_valid_part(split_topic, current_part)
+            
             if not success:
                 break
 
