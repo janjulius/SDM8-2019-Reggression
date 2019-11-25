@@ -1,5 +1,6 @@
 import paho.mqtt.client as mqtt
 import sys
+from datetime import datetime
 
 try: color = sys.stdout.shell
 except AttributeError: raise RuntimeError("Use IDLE")
@@ -96,7 +97,7 @@ def check_valid_part(split_topic, current_part):
         split_topic, success = intTryParse(split_topic)
         if success:
             if int(split_topic) <= current_part.max:
-                # Done, valid topic
+                # Done, valid payload
                 return None, True
             else:
                 color.write(f"ERROR: invalid payload, {split_topic}\n", "COMMENT")
@@ -177,7 +178,7 @@ def on_connect(client, userdata, flags, rc):
 def on_message(client, userdata, msg):
     payload = msg.payload.decode('utf-8')
     color.write("\n#############################################\n\n", "KEYWORD")
-    print(f"TOPIC: {msg.topic} - PAYLOAD: {payload}")
+    print(f"{datetime.now()}\nTOPIC: {msg.topic} - PAYLOAD: {payload}")
 
     split_topics = msg.topic.split('/', -1)
     split_topics = list(filter(None, split_topics))
