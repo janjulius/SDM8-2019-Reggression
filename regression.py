@@ -200,7 +200,7 @@ def on_message(client, userdata, msg):
         if success:
             color.write("OK: valid topic\n", "STRING")
     else:
-        print('ERROR: invalid topic length')
+        color.write(f'ERROR: invalid topic length {split_topics_length}', "COMMENT");
     
 
 client = mqtt.Client()
