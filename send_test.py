@@ -3,18 +3,18 @@ from random import randrange
 
 group_no = 8#input("Group no: ")
 
-topics=[f"{group_no}/foot/0/NULL/sensor/0/",
-f"{group_no}/foot/0/1/sensor/0/",
-f"{group_no}/foot/0/1/sensor/0/",
-f"{group_no}/vessel/0/NULL/sensor/0/",
-f"{group_no}/vessel/0/1/sensor/0/",
-f"{group_no}/motorised/0/1/sensor/0/",
-f"{group_no}/motorised/0/NULL/traffiac_light/0/",
-f"{group_no}/vessel/0/1/sensor/0/",
-f"{group_no}/vessel/0/1/sensor/0/",
-f"{group_no}/foot/3/NULL/sensor/0/",
-f"{group_no}/foot/2/1/traffic_light/0/",
-f"{group_no}/fogot/4/NULL/traffic_light/0/"]
+topics=[f"{group_no}/motorised/5/sensor/3",
+f"{group_no}/foot/0/sensor/0/",
+f"{group_no}/foot/0/sensor/0/",
+f"{group_no}/vessel/0/sensor/0/",
+f"{group_no}/vessel/0/sensor/0/",
+f"{group_no}/motorised/0/sensor/0/",
+f"{group_no}/motorised/0/traffiac_light/0/",
+f"{group_no}/vessel/0/sensor/0/",
+f"{group_no}/vessel/0/sensor/0/",
+f"{group_no}/foot/3/sensor/0/",
+f"{group_no}/foot/2/traffic_light/0/",
+f"{group_no}/fogot/4/traffic_light/0/"]
 
 #broker = "test.mosquitto.org"
 broker = "62.210.180.72"
@@ -24,4 +24,4 @@ print("connecting to broker")
 client.connect(broker) #connect to broker
 for topic in topics:
 	print("Publishing message to topic",topic)
-	client.publish(topic,randrange(3))
+	client.publish(topic,randrange(2))

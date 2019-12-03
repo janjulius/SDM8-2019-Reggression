@@ -7,18 +7,72 @@ except AttributeError: raise RuntimeError("Use IDLE")
 
 group_no = 8#input("Group no: ")
 
+sensor_max_payload = 1
+
+traffic_light_max_id = 0
+traffic_light_max_payload = 2
+
+warning_light_max_id = 0
+warning_light_max_payload = 1
+
+barrier_max_id = 0
+barrier_max_payload = 1
+
+deck_max_id = 0
+deck_max_payload = 1
+
+motorised_group_max_id = 8
+motorised_sensor_single_lane_max_id = 1
+motorised_sensor_dual_lane_max_id = 3
+
+cycle_group_max_id = 4
+cycle_sensor_one_way_max_id = 0
+cycle_sensor_two_way_max_id = 1
+
+foot_group_max_id = 6
+foot_sensor_max_id = 1
+
+track_group_max_id = 0
+track_sensor_max_id = 2
+track_light_max_id = 1
+
+vessel_group_max_id = 0
+vessel_light_max_id = 1
+vessel_sensor_max_id = 3
+vessel_light_max_payload = 1
+
+bridge_barriers_open = True
+deck_open = False
+deck_sensor_clear = True
+under_deck_sensor_clear = True
+vessel_warning_lights_on = False
+boat_light_0_green = False
+boat_light_1_green = False
+
+track_barriers_open = True
+crossing_clear = True
+track_east_clear = True
+track_west_clear = True
+track_warning_lights_on = False
+
+
+class Odd_Sensor:
+    def __init__(self, group_id, max):
+        self.group_id = group_id
+        self.max = max
+
 class Part:
     def __init__(self, value, next):
         self.value = value
         self.next = next
 
-class Number_Part:
-    def __init__(self, max, next, subs):
+class Odd_Sensor_Part:
+    def __init__(self, max, next, odd_parts):
         self.max = max
         self.next = next
-        self.subs = subs
+        self.odd_parts = odd_parts
 
-class Sub_Part:
+class Number_Part:
     def __init__(self, max, next):
         self.max = max
         self.next = next
@@ -27,19 +81,11 @@ class Payload_Part:
     def __init__(self, max):
         self.max = max
 
-class Sub:
-    def __init__(self, parent, max):
-        self.parent = parent
-        self.max = max
-
-def is_sub(val):
-    return type(val) == Sub
-
 def is_number_part(val):
     return type(val) == Number_Part
 
-def is_sub_part(val):
-    return type(val) == Sub_Part
+def is_odd_sensor_part(val):
+    return type(val) == Odd_Sensor_Part
 
 def is_part(val):
     return type(val) == Part
@@ -60,7 +106,7 @@ def intTryParse(value):
         return value, False
 
 def check_valid_part(split_topic, current_part):
-    #  STRING (component_type, lane_type) #
+    # STRING (component_type, lane_type) #
     if is_multi_part(current_part):
         for current_multi_part in current_part:
             if is_valid_part(split_topic, current_multi_part):
@@ -74,17 +120,8 @@ def check_valid_part(split_topic, current_part):
         split_topic, success = intTryParse(split_topic)
         if success:
             if int(split_topic) <= current_part.max:
-                if current_part.subs == None:
-                    # No subs for group
-                    return current_part.next, True
-                else:
-                    for sub in current_part.subs:
-                        if sub.parent == int(split_topic):
-                            # Return valid subs for group (or NULL)
-                            return Sub_Part(sub.max, current_part.next), True
-
-                    # No subs for group so it should be NULL
-                    return Sub_Part(None, current_part.next), True
+                # Done, valid number part
+                return current_part.next, True
             else:
                 color.write(f"ERROR: invalid group, {split_topic}\n", "COMMENT")
                 return None, False
@@ -92,7 +129,27 @@ def check_valid_part(split_topic, current_part):
            color.write(f"ERROR: not a number, {split_topic}\n", "COMMENT")
            return None, False
 
-    # -- PAYLOAD --
+    # ODD SENSOR PART (component_id) # 
+    elif is_odd_sensor_part(current_part):
+        print(current_part.max, split_topic)
+        split_topic, success = intTryParse(split_topic)
+        if success:
+            for odd_part in current_part.odd_parts:
+                print(odd_part.group_id, odd_part.max)
+                if odd_part.group_id == int(split_topic):     
+                    return current_part.next, True
+            if int(split_topic) <= current_part.max:
+                # Done, valid number part
+                return current_part.next, True
+            else:
+                color.write(f"ERROR: invalid sensor, {split_topic}\n", "COMMENT")
+                return None, False
+        else:
+           color.write(f"ERROR: not a number, {split_topic}\n", "COMMENT")
+           return None, False
+
+
+   # PAYLOAD #
     elif is_payload_part(current_part):
         split_topic, success = intTryParse(split_topic)
         if success:
@@ -105,25 +162,8 @@ def check_valid_part(split_topic, current_part):
         else:
            color.write(f"ERROR: payload not a number, {split_topic}\n", "COMMENT")
            return None, False
-        
-    # -- SUB GROUP --
-    elif is_sub_part(current_part):
-        split_topic, success = intTryParse(split_topic)
-        if success:
-            if current_part.max is not None and int(split_topic) <= current_part.max:
-                # Valid sup group, check next part
-                return current_part.next, True
-            else:
-                color.write(f"ERROR: group does not have {split_topic} as subgroup\n", "COMMENT")
-                return None, False  
-        elif split_topic == 'NULL':
-            # Subgroup can be NULL
-            return current_part.next, True
-        else:
-            color.write(f"ERROR: invalid value in sub group, {split_topic}\n", "COMMENT")
-            return None, False
 
-    # -- STRING (component_type, lane_type) --
+    # STRING (component_type, lane_type) #
     elif is_part(current_part):
         if is_valid_part(split_topic, current_part):
             # Valid string part
@@ -135,30 +175,40 @@ def check_valid_part(split_topic, current_part):
 
 
 def get_component(name, max_id, max_payload):
-    return Part(name, Number_Part(max_id, Payload_Part(max_payload), None))
-            
-sensor_motorised = get_component("sensor", 1, 1)
-sensor = get_component("sensor", 0, 1)
+    return Part(name, Number_Part(max_id, Payload_Part(max_payload)))
 
-traffic_light = get_component("traffic_light", 0, 3)
-warning_light = get_component("warning_light", 0, 1)
+def get_odd_sensor_component(name, max_id, max_payload, odd_parts):
+    return Part(name, Odd_Sensor_Part(max_id, Payload_Part(max_payload), odd_parts))
 
-barrier_vessel = get_component("barrier", 7, 1)
-barrier_track = get_component("barrier", 8, 1)
+odd_motorised_sensor = [Odd_Sensor(1, motorised_sensor_dual_lane_max_id), Odd_Sensor(5, motorised_sensor_dual_lane_max_id)]
+odd_cycle_sensor = [Odd_Sensor(3, cycle_sensor_two_way_max_id), Odd_Sensor(4, cycle_sensor_two_way_max_id)]
+           
+track_sensor = get_component("sensor", track_sensor_max_id, sensor_max_payload)
+vessel_sensor = get_component("sensor", vessel_sensor_max_id, sensor_max_payload)
+foot_sensor = get_component("sensor", foot_sensor_max_id, sensor_max_payload)
+cycle_sensor = get_odd_sensor_component("sensor", cycle_sensor_one_way_max_id, sensor_max_payload, odd_cycle_sensor)
+motorised_sensor = get_odd_sensor_component("sensor", motorised_sensor_single_lane_max_id, sensor_max_payload, odd_motorised_sensor)
 
-motorised_number_part = Number_Part(8, [traffic_light, sensor_motorised], [Sub(1, 1), Sub(5, 1)])
+deck = get_component("deck", deck_max_id, deck_max_payload)
+barrier = get_component("barrier", barrier_max_id, barrier_max_payload)
+
+traffic_light = get_component("traffic_light", traffic_light_max_id, traffic_light_max_payload)
+warning_light = get_component("warning_light", warning_light_max_id, warning_light_max_payload)
+train_light = get_component("train_light", warning_light_max_id, warning_light_max_payload)
+
+motorised_number_part = Number_Part(motorised_group_max_id, [traffic_light, motorised_sensor])
 motorised_part = Part("motorised", motorised_number_part)
 
-foot_number_part = Number_Part(7, [traffic_light, sensor], [Sub(0, 1), Sub(1, 1), Sub(4, 2), Sub(5, 2)])
+foot_number_part = Number_Part(foot_group_max_id, [traffic_light, foot_sensor])
 foot_part = Part("foot", foot_number_part)
 
-cycle_number_part = Number_Part(5, [traffic_light, sensor], [Sub(3, 1)])
+cycle_number_part = Number_Part(cycle_group_max_id, [traffic_light, cycle_sensor])
 cycle_part = Part("cycle", cycle_number_part)
 
-vessel_number_part = Number_Part(1, [traffic_light, sensor, warning_light, barrier_vessel], [Sub(0, None)])
+vessel_number_part = Number_Part(vessel_group_max_id, [traffic_light, vessel_sensor, warning_light, barrier])
 vessel_part = Part("vessel", vessel_number_part)
 
-track_number_part = Number_Part(1, [traffic_light, sensor, warning_light, barrier_track], [Sub(0, None)])
+track_number_part = Number_Part(track_group_max_id, [traffic_light, track_sensor, warning_light, barrier])
 track_part = Part("track", track_number_part)
 
 valid_parts = [motorised_part, foot_part, cycle_part, vessel_part, track_part]
@@ -186,7 +236,7 @@ def on_message(client, userdata, msg):
     del split_topics[0] # Group no
     split_topics_length = len(split_topics)
         
-    if split_topics_length == 5:
+    if split_topics_length == 4:
         split_topics.append(payload)
         current_part = valid_parts
         success = False
