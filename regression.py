@@ -55,163 +55,129 @@ track_east_clear = True
 track_west_clear = True
 track_warning_lights_on = False
 
+class Topic:
+    def __init__(self, lane_type, max_group_id, components):
+        self.lane_type = lane_type
+        self.max_group_id = max_group_id
+        self.components = components
 
-class Odd_Sensor:
+class Odd_Rules:
     def __init__(self, group_id, max):
         self.group_id = group_id
         self.max = max
 
-class Part:
-    def __init__(self, value, next):
+class Component:
+    def __init__(self, value, max_component_id, max_payload, odd_rules = None):
         self.value = value
-        self.next = next
-
-class Odd_Sensor_Part:
-    def __init__(self, max, next, odd_parts):
-        self.max = max
-        self.next = next
-        self.odd_parts = odd_parts
-
-class Number_Part:
-    def __init__(self, max, next):
-        self.max = max
-        self.next = next
-
-class Payload_Part:
-    def __init__(self, max):
-        self.max = max
-
-def is_number_part(val):
-    return type(val) == Number_Part
-
-def is_odd_sensor_part(val):
-    return type(val) == Odd_Sensor_Part
-
-def is_part(val):
-    return type(val) == Part
-
-def is_multi_part(val):
-    return type(val) == list and len(list(val)) >= 0 and type(val[0]) == Part
-
-def is_payload_part(val):
-    return type(val) == Payload_Part
-
-def is_valid_part(split_topic, part):
-    return part.value == split_topic
+        self.max_component_id = max_component_id
+        self.max_payload = max_payload
+        self.odd_rules = odd_rules
 
 def intTryParse(value):
     try:
         return int(value), True
     except ValueError:
-        return value, False
+        return value, False       
 
-def check_valid_part(split_topic, current_part):
-    # STRING (component_type, lane_type) #
-    if is_multi_part(current_part):
-        for current_multi_part in current_part:
-            if is_valid_part(split_topic, current_multi_part):
-                # Valid string part
-                return current_multi_part.next, True
-        color.write(f"ERROR: invalid string, {split_topic}\n", "COMMENT")
-        return None, False
-
-    # INTEGER (group_id, component_id) # 
-    elif is_number_part(current_part):
-        split_topic, success = intTryParse(split_topic)
-        if success:
-            if int(split_topic) <= current_part.max:
-                # Done, valid number part
-                return current_part.next, True
-            else:
-                color.write(f"ERROR: invalid group, {split_topic}\n", "COMMENT")
-                return None, False
-        else:
-           color.write(f"ERROR: not a number, {split_topic}\n", "COMMENT")
-           return None, False
-
-    # ODD SENSOR PART (component_id) # 
-    elif is_odd_sensor_part(current_part):
-        print(current_part.max, split_topic)
-        split_topic, success = intTryParse(split_topic)
-        if success:
-            for odd_part in current_part.odd_parts:
-                print(odd_part.group_id, odd_part.max)
-                if odd_part.group_id == int(split_topic):     
-                    return current_part.next, True
-            if int(split_topic) <= current_part.max:
-                # Done, valid number part
-                return current_part.next, True
-            else:
-                color.write(f"ERROR: invalid sensor, {split_topic}\n", "COMMENT")
-                return None, False
-        else:
-           color.write(f"ERROR: not a number, {split_topic}\n", "COMMENT")
-           return None, False
-
-
-   # PAYLOAD #
-    elif is_payload_part(current_part):
-        split_topic, success = intTryParse(split_topic)
-        if success:
-            if int(split_topic) <= current_part.max:
-                # Done, valid payload
-                return None, True
-            else:
-                color.write(f"ERROR: invalid payload, {split_topic}\n", "COMMENT")
-                return None, False
-        else:
-           color.write(f"ERROR: payload not a number, {split_topic}\n", "COMMENT")
-           return None, False
-
-    # STRING (component_type, lane_type) #
-    elif is_part(current_part):
-        if is_valid_part(split_topic, current_part):
-            # Valid string part
-            return current_part.next, True
-        else:
-            color.write(f"ERROR: invalid string, {split_topic}\n", "COMMENT")
-            return None, False
-
-
-
-def get_component(name, max_id, max_payload):
-    return Part(name, Number_Part(max_id, Payload_Part(max_payload)))
-
-def get_odd_sensor_component(name, max_id, max_payload, odd_parts):
-    return Part(name, Odd_Sensor_Part(max_id, Payload_Part(max_payload), odd_parts))
-
-odd_motorised_sensor = [Odd_Sensor(1, motorised_sensor_dual_lane_max_id), Odd_Sensor(5, motorised_sensor_dual_lane_max_id)]
-odd_cycle_sensor = [Odd_Sensor(3, cycle_sensor_two_way_max_id), Odd_Sensor(4, cycle_sensor_two_way_max_id)]
+odd_motorised_sensor = [Odd_Rules(1, motorised_sensor_dual_lane_max_id), Odd_Rules(5, motorised_sensor_dual_lane_max_id)]
+odd_cycle_sensor = [Odd_Rules(3, cycle_sensor_two_way_max_id), Odd_Rules(4, cycle_sensor_two_way_max_id)]
            
-track_sensor = get_component("sensor", track_sensor_max_id, sensor_max_payload)
-vessel_sensor = get_component("sensor", vessel_sensor_max_id, sensor_max_payload)
-foot_sensor = get_component("sensor", foot_sensor_max_id, sensor_max_payload)
-cycle_sensor = get_odd_sensor_component("sensor", cycle_sensor_one_way_max_id, sensor_max_payload, odd_cycle_sensor)
-motorised_sensor = get_odd_sensor_component("sensor", motorised_sensor_single_lane_max_id, sensor_max_payload, odd_motorised_sensor)
+track_sensor = Component("sensor", track_sensor_max_id, sensor_max_payload)
+vessel_sensor = Component("sensor", vessel_sensor_max_id, sensor_max_payload)
+foot_sensor = Component("sensor", foot_sensor_max_id, sensor_max_payload)
+cycle_sensor = Component("sensor", cycle_sensor_one_way_max_id, sensor_max_payload, odd_cycle_sensor)
+motorised_sensor = Component("sensor", motorised_sensor_single_lane_max_id, sensor_max_payload, odd_motorised_sensor)
 
-deck = get_component("deck", deck_max_id, deck_max_payload)
-barrier = get_component("barrier", barrier_max_id, barrier_max_payload)
+deck = Component("deck", deck_max_id, deck_max_payload)
+barrier = Component("barrier", barrier_max_id, barrier_max_payload)
 
-traffic_light = get_component("traffic_light", traffic_light_max_id, traffic_light_max_payload)
-warning_light = get_component("warning_light", warning_light_max_id, warning_light_max_payload)
-train_light = get_component("train_light", warning_light_max_id, warning_light_max_payload)
+traffic_light = Component("traffic_light", traffic_light_max_id, traffic_light_max_payload)
+warning_light = Component("warning_light", warning_light_max_id, warning_light_max_payload)
+train_light = Component("train_light", warning_light_max_id, warning_light_max_payload)
 
-motorised_number_part = Number_Part(motorised_group_max_id, [traffic_light, motorised_sensor])
-motorised_part = Part("motorised", motorised_number_part)
+motorised = Topic("motorised", motorised_group_max_id, [traffic_light, motorised_sensor])
+foot = Topic("foot", foot_group_max_id, [traffic_light, foot_sensor])
+cycle = Topic("cycle", cycle_group_max_id, [traffic_light, cycle_sensor])
+vessel = Topic("vessel", vessel_group_max_id, [traffic_light, vessel_sensor, warning_light, barrier])
+track = Topic("track", track_group_max_id, [traffic_light, track_sensor, warning_light, barrier])
 
-foot_number_part = Number_Part(foot_group_max_id, [traffic_light, foot_sensor])
-foot_part = Part("foot", foot_number_part)
+valid_parts = [motorised, foot, cycle, vessel, track]
 
-cycle_number_part = Number_Part(cycle_group_max_id, [traffic_light, cycle_sensor])
-cycle_part = Part("cycle", cycle_number_part)
+def check_valid_topic(topic, payload):
+    split_topics = topic.split('/', -1)
+    split_topics = list(filter(None, split_topics))
+    
+    del split_topics[0] # Group no    
+        
+    if len(split_topics) == 4:
+        lane_type = split_topics[0]
+        group_id = split_topics[1]
+        component_type = split_topics[2]
+        component_id = split_topics[3]
 
-vessel_number_part = Number_Part(vessel_group_max_id, [traffic_light, vessel_sensor, warning_light, barrier])
-vessel_part = Part("vessel", vessel_number_part)
+        group_id, is_int = intTryParse(group_id)
+        if not is_int:
+            color.write(f'ERROR: invalid int group_id {group_id}', "COMMENT");
+            return
 
-track_number_part = Number_Part(track_group_max_id, [traffic_light, track_sensor, warning_light, barrier])
-track_part = Part("track", track_number_part)
+        component_id, is_int = intTryParse(component_id)
+        if not is_int:
+            color.write(f'ERROR: invalid int component_id {component_id}', "COMMENT");
+            return
+        
+        payload, is_int = intTryParse(payload)
+        if not is_int:
+            color.write(f'ERROR: invalid int payload {payload}', "COMMENT");
+            return       
 
-valid_parts = [motorised_part, foot_part, cycle_part, vessel_part, track_part]
+        found_lane_type = False
+        found_component_type = False
+
+        # Check lane_type
+        for valid_part in valid_parts:
+            if valid_part.lane_type == lane_type: 
+                found_lane_type = True
+
+                # Check group_id
+                group_id, is_int = intTryParse(group_id)                
+                if int(group_id) <= valid_part.max_group_id:
+
+                    # Check component_type
+                    for component in valid_part.components:
+                        if component.value == component_type:
+                            found_component_type = True
+
+                            # Check for odd rules
+                            if component.odd_rules is not None:
+                                for odd_rule in component.odd_rules:
+                                    if odd_rule.group_id == int(group_id):
+                                        component.max_component_id = odd_rule.max
+
+
+                            # Check component_id
+                            if int(component_id) <= component.max_component_id:
+                                if int(payload) <= component.max_payload:
+                                    color.write("OK: valid topic\n", "STRING")
+                                else:
+                                    color.write(f'ERROR: invalid payload {payload}\n', "COMMENT");
+                            else:
+                                # invalid component id
+                                color.write(f'ERROR: invalid component_id {component_id}\n', "COMMENT");
+                                
+                    # not found error
+                    if not found_component_type:
+                        color.write(f'ERROR: invalid component_type {component_type}\n', "COMMENT");
+                else:
+                    # invalid group_id
+                    color.write(f'ERROR: invalid group_id {group_id}\n', "COMMENT");
+                    
+        # not found error
+        if not found_lane_type:
+            color.write(f'ERROR: invalid lane_type {lane_type}\n', "COMMENT");
+        
+    else:
+        color.write(f'ERROR: invalid topic length {split_topics_length}\n', "COMMENT");
+
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
@@ -230,27 +196,7 @@ def on_message(client, userdata, msg):
     color.write("\n#############################################\n\n", "KEYWORD")
     print(f"{datetime.now()}\nTOPIC: {msg.topic} - PAYLOAD: {payload}")
 
-    split_topics = msg.topic.split('/', -1)
-    split_topics = list(filter(None, split_topics))
-    
-    del split_topics[0] # Group no
-    split_topics_length = len(split_topics)
-        
-    if split_topics_length == 4:
-        split_topics.append(payload)
-        current_part = valid_parts
-        success = False
-        
-        for split_topic in split_topics:
-            current_part, success = check_valid_part(split_topic, current_part)
-            
-            if not success:
-                break
-
-        if success:
-            color.write("OK: valid topic\n", "STRING")
-    else:
-        color.write(f'ERROR: invalid topic length {split_topics_length}', "COMMENT");
+    check_valid_topic(msg.topic, payload)
     
 
 client = mqtt.Client()
