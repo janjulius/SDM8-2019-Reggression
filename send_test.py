@@ -4,17 +4,17 @@ from random import randrange
 group_no = 8#input("Group no: ")
 
 topics=[f"{group_no}/motorised/3/sensor/3",
-f"{group_no}/foot/0/sensor/0/",
-f"{group_no}/foot/0/sensor/0/",
-f"{group_no}/vessel/0/sensor/0/",
-f"{group_no}/vessel/0/sensor/0/",
-f"{group_no}/motorised/0/sensor/0/",
-f"{group_no}/motorised/bami/traffiac_light/0/",
-f"{group_no}/vessel/0/sensor/0/",
-f"{group_no}/vessel/0/sensor/0/",
-f"{group_no}/foot/3/sensor/0/",
-f"{group_no}/foot/2/traffic_light/0/",
-f"{group_no}/fogot/4/traffic_light/0/"]
+f"{group_no}/foot/0/sensor/0",
+f"{group_no}/foot/0/sensor/0",
+f"{group_no}/vessel/0/sensor/0",
+f"{group_no}/vessel/0/sensor/0",
+f"{group_no}/motorised/5/sensor/3",
+f"{group_no}/motorised/bami/traffiac_light/0",
+f"{group_no}/vessel/0/sensor/0",
+f"{group_no}/vessel/0/sensor/0",
+f"{group_no}/foot/3/sensor/0",
+f"{group_no}/foot/2/traffic_light/0",
+f"{group_no}/fogot/4/traffic_light/0"]
 
 #broker = "test.mosquitto.org"
 broker = "62.210.180.72"
