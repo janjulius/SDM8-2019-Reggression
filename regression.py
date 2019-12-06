@@ -100,8 +100,8 @@ boat_light = Component("boat_light", vessel_light_max_id, vessel_light_max_paylo
 motorised = Topic("motorised", motorised_group_max_id, [traffic_light, motorised_sensor])
 foot = Topic("foot", foot_group_max_id, [traffic_light, foot_sensor])
 cycle = Topic("cycle", cycle_group_max_id, [traffic_light, cycle_sensor])
-vessel = Topic("vessel", vessel_group_max_id, [traffic_light, vessel_sensor, warning_light, barrier, train_light])
-track = Topic("track", track_group_max_id, [traffic_light, track_sensor, warning_light, barrier, boat_light])
+vessel = Topic("vessel", vessel_group_max_id, [vessel_sensor, warning_light, barrier, boat_light])
+track = Topic("track", track_group_max_id, [track_sensor, warning_light, barrier, train_light])
 
 valid_parts = [motorised, foot, cycle, vessel, track]
 
@@ -171,21 +171,31 @@ def check_valid_topic(topic, payload):
                                 if int(payload) <= component.max_payload:
                                     log_message("valid topic")
                                 else:
-                                    log_error(f'invalid payload {payload}')
+                                    log_error(f'invalid payload {payload}\nMAX: {component.max_payload}')
                             else:
                                 # invalid component id
-                                log_error(f'invalid component_id {component_id}')
+                                log_error(f'invalid component_id {component_id}\nMAX: {component.max_component_id}')
                                 
                     # not found error
                     if not found_component_type:
-                        log_error(f'invalid component_type {component_type}')
+                        valid_component_types = []
+                        for component in valid_part.components:
+                            valid_component_types.append(component.value)
+                        valid_components_string = ", ".join(valid_component_types)
+                        
+                        log_error(f'invalid component_type {component_type}\nALLOWED: {valid_components_string}')
                 else:
                     # invalid group_id
-                    log_error(f'invalid group_id {group_id}')
+                    log_error(f'invalid group_id {group_id}\nMAX: {valid_part.max_group_id}')
                     
         # not found error
         if not found_lane_type:
-            log_error(f'invalid lane_type {lane_type}')
+            valid_lanes = []
+            for valid_part in valid_parts:
+                valid_lanes.append(valid_part.lane_type)
+            valid_lanes_string = ", ".join(valid_lanes)
+            
+            log_error(f'invalid lane_type {lane_type}\nALLOWED: {valid_lanes_string}')
         
     else:
         log_error(f'invalid topic length {len(split_topics)}')
@@ -221,7 +231,6 @@ def checkTrackRules(topic, payload):
     
 
 def checkVesselRules(topic, payload):
-    print(topic)
     if "/vessel/0/boat_light/0" in topic:
         if payload == 1 and not deck_open:
             log_error("deck is closed can not turn lights green")
