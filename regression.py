@@ -112,8 +112,6 @@ def log_message(message):
     color.write(f'OK: {message}\n', "STRING");
 
 def check_valid_topic(topic, payload):
-        
-    
     split_topics = topic.split('/', -1)
     
     del split_topics[0] # Group no    
