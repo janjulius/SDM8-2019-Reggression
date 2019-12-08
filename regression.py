@@ -1,12 +1,12 @@
 import paho.mqtt.client as mqtt
 import sys
 from datetime import datetime
-from threading import Timer
+from threading import Thread, Timer
 
 try: color = sys.stdout.shell
 except AttributeError: raise RuntimeError("Use IDLE")
 
-group_no = input("Group no: ")
+group_no = 8#input("Group no: ")
 
 sensor_max_payload = 1
 
@@ -56,6 +56,8 @@ crossing_clear = True
 track_east_clear = True
 track_west_clear = True
 track_warning_lights_on = False
+track_light_0_green = False
+track_light_1_green = False
 
 class Topic:
     def __init__(self, lane_type, max_group_id, components):
@@ -111,6 +113,9 @@ def log_error(message):
 
 def log_message(message):
     color.write(f'OK: {message}\n', "STRING");
+
+def log_warning(message):
+    color.write(f'WARN: {message}\n', "KEYWORD");
 
 def print_line():
     color.write("\n#############################################\n\n", "KEYWORD")
@@ -203,11 +208,10 @@ def check_valid_topic(topic, payload):
     else:
         log_error(f'invalid topic length {len(split_topics)}')
 
-def check_barriers_closed():
-    if track_warning_lights_on and track_barriers_open:
+def check_statement(statement, message, topic):
+    if statement():
         print_line()
-        log_error("(CALLBACK) barriers should have been closed, track lights are on")
-        
+        log_warning(f'{message}\n(CALLBACK FROM: {topic}) ')
 
 def check_track_rules(topic, payload):
     global track_barriers_open
@@ -215,37 +219,74 @@ def check_track_rules(topic, payload):
     global track_east_clear
     global track_warning_lights_on
     global crossing_clear
-    
-    if "/track/0/warning_light/0" in topic:
+    global track_light_0_green
+    global track_light_1_green
+
+    if "/track/0/train_light/0" in topic:
+        track_light_0_green = payload == 1
+    elif "/track/0/train_light/1" in topic:
+        track_light_1_green = payload == 1;
+    elif "/track/0/warning_light/0" in topic:
         if payload == 0:
             if not track_barriers_open:
-                log_error(f'cannot turn of warning_light, barriers are closed')
+                log_warning(f'cannot turn of warning_light, barriers are closed')
         if payload == 1:
             
             if track_west_clear and track_east_clear:
-                log_error(f'not allowed to turn on warning_light when no train is coming')
+                log_warning(f'not allowed to turn on warning_light when no train is coming')
 
             # check if barriers close topic is sent 5 seconds later
-            Timer(5.5, check_barriers_closed).start()
+            Timer(5.5, check_statement, [
+                lambda: track_barriers_open,
+                "barriers should have been closed, warning lights are on",
+                topic
+                ]).start()
         
         track_warning_lights_on = payload == 1
     elif "/track/0/sensor/0" in topic:
-        #if payload == 1: TODO check if warning_lights on topic is sent
+        if payload == 1:
+            # check if warning_lights on topic is sent
+            Timer(1.5, check_statement, [
+                lambda: track_warning_lights_on,
+                "train is coming, warning lights should go on",
+                topic
+                ]).start()
+            
         track_east_clear = payload == 0
     elif "/track/0/sensor/1" in topic:
         crossing_clear = payload == 0
     elif "/track/0/sensor/2" in topic:
-        #if payload == 1: TODO check if warning_lights on topic is sent
+        if payload == 1:
+            # check if warning_lights on topic is sent
+            Timer(1.5, check_statement, [
+                lambda: track_warning_lights_on,
+                "train is coming, warning lights should go on",
+                topic
+                ]).start()
+            
         track_west_clear = payload == 0;
     elif "/track/0/barrier/0" in topic:
         if payload == 1: 
             if not crossing_clear or not track_east_clear or not track_west_clear:
-                log_error(f'cannot open barrier, track not clear\n');
-            # TODO check if warning_lights off topic is sent 4 seconds later
+                log_warning(f'cannot open barrier, track not clear\n');
+                
+            # check if warning_lights off topic is sent 4 seconds later
+            Timer(4.5, check_statement, [
+                lambda: track_warning_lights_on,
+                "track warning_lights should be off",
+                topic
+                ]).start()
+            
         if payload == 0:
             if not track_warning_lights_on:
-                log_error(f'cannot close barrier, when warning lights are off');
-            # TODO check if track_light 0 or 1 green is sent 4 seconds later
+                log_warning(f'cannot close barrier, when warning lights are off');
+                
+            # check if track_light 0 or 1 green is sent 4 seconds later
+            Timer(4.5, check_statement, [
+                lambda: track_light_0_green or track_light_1_green,
+                "train light can be turned on",
+                topic
+                ]).start()
         track_barriers_open = payload == 1
     
 
@@ -260,18 +301,18 @@ def check_vessel_rules(topic, payload):
     
     if "/vessel/0/boat_light/0" in topic:
         if payload == 1 and not deck_open:
-            log_error("deck is closed can not turn lights green")
+            log_warning("deck is closed can not turn lights green")
         boat_light_0_green = payload == 1
     elif "/vessel/0/boat_light/1" in topic:
         if payload == 1 and not deck_open:
-            log_error("deck is closed can not turn lights green")
+            log_warning("deck is closed can not turn lights green")
         boat_light_1_green = payload == 1;
     elif "/vessel/0/warning_light/0" in topic:
         if payload == 0:
             if deck_open:
-                log_error("not allowed to turn off warning_light when deck is open");
+                log_warning("not allowed to turn off warning_light when deck is open");
             if not bridge_barriers_open:
-                log_error("not allowed to turn off warning_light, barriers are still closed");
+                log_warning("not allowed to turn off warning_light, barriers are still closed");
         vessel_warning_lights_on = payload == 1
     elif "/vessel/0/sensor/3" in topic:
         deck_sensor_clear = payload == 0
@@ -279,13 +320,13 @@ def check_vessel_rules(topic, payload):
         if payload == 1:
             # TODO check if warning_lights off topic is sent 4 seconds later
             if deck_open:
-                log_error("not allowed to open barriers, deck is still open");
+                log_warning("not allowed to open barriers, deck is still open");
         elif payload == 0:
             # TODO check if deck open topic is sent 4 seconds later
             if not vessel_warning_lights_on:
-                log_error("not allowed to close barriers, warning_lights are not on")
+                log_warning("not allowed to close barriers, warning_lights are not on")
             if not deck_sensor_clear:
-                log_error("not allowed to close barriers, deck is not cleared")
+                log_warning("not allowed to close barriers, deck is not cleared")
         bridge_barriers_open = payload == 1
     elif "/vessel/0/sensor/1" in topic:
         under_deck_sensor_clear = payload == 0
@@ -293,17 +334,17 @@ def check_vessel_rules(topic, payload):
         if payload == 1:
             # TODO check if a boat_light green topic is sent 10 seconds later
             if bridge_barriers_open:
-                log_error("not allowed to open deck when barriers are open")
+                log_warning("not allowed to open deck when barriers are open")
             if not deck_sensor_clear:
-                log_error("not allowed to open deck when it`s not cleared")
+                log_warning("not allowed to open deck when it`s not cleared")
             if not vessel_warning_lights_on:
-                log_error("not allowed to open deck when warning_lights are off")
+                log_warning("not allowed to open deck when warning_lights are off")
         elif payload == 0:
             # TODO check if barriers open topic is sent 10 seconds later
             if boat_light_0_green or boat_light_1_green:
-                log_error("not allowed to close deck when boat_light is green")
+                log_warning("not allowed to close deck when boat_light is green")
             if not under_deck_sensor_clear:
-                log_error("not allowed to close deck when there are vessels under it")
+                log_warning("not allowed to close deck when there are vessels under it")
                 
         deck_open = payload == 1
 
