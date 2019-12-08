@@ -1,6 +1,7 @@
 import paho.mqtt.client as mqtt
 import sys
 from datetime import datetime
+from threading import Timer
 
 try: color = sys.stdout.shell
 except AttributeError: raise RuntimeError("Use IDLE")
@@ -111,6 +112,10 @@ def log_error(message):
 def log_message(message):
     color.write(f'OK: {message}\n', "STRING");
 
+def print_line():
+    color.write("\n#############################################\n\n", "KEYWORD")
+    print(f"{datetime.now()}")
+
 def check_valid_topic(topic, payload):
     split_topics = topic.split('/', -1)
     
@@ -137,8 +142,8 @@ def check_valid_topic(topic, payload):
             log_error(f'invalid int payload {payload}')
             return
 
-        checkTrackRules(topic, payload)
-        checkVesselRules(topic, payload)
+        check_track_rules(topic, payload)
+        check_vessel_rules(topic, payload)
 
         found_lane_type = False
         found_component_type = False
@@ -198,15 +203,31 @@ def check_valid_topic(topic, payload):
     else:
         log_error(f'invalid topic length {len(split_topics)}')
 
-def checkTrackRules(topic, payload):
+def check_barriers_closed():
+    if track_warning_lights_on and track_barriers_open:
+        print_line()
+        log_error("(CALLBACK) barriers should have been closed, track lights are on")
+        
+
+def check_track_rules(topic, payload):
+    global track_barriers_open
+    global track_west_clear
+    global track_east_clear
+    global track_warning_lights_on
+    global crossing_clear
+    
     if "/track/0/warning_light/0" in topic:
         if payload == 0:
-                if not track_barriers_open:
-                    log_error(f'cannot turn of warning_light, barriers are closed')
+            if not track_barriers_open:
+                log_error(f'cannot turn of warning_light, barriers are closed')
         if payload == 1:
+            
             if track_west_clear and track_east_clear:
                 log_error(f'not allowed to turn on warning_light when no train is coming')
-                # TODO check if barriers close topic is sent 5 seconds later
+
+            # check if barriers close topic is sent 5 seconds later
+            Timer(5.5, check_barriers_closed).start()
+        
         track_warning_lights_on = payload == 1
     elif "/track/0/sensor/0" in topic:
         #if payload == 1: TODO check if warning_lights on topic is sent
@@ -225,10 +246,18 @@ def checkTrackRules(topic, payload):
             if not track_warning_lights_on:
                 log_error(f'cannot close barrier, when warning lights are off');
             # TODO check if track_light 0 or 1 green is sent 4 seconds later
-            track_barriers_open = payload == 1
+        track_barriers_open = payload == 1
     
 
-def checkVesselRules(topic, payload):
+def check_vessel_rules(topic, payload):
+    global bridge_barriers_open
+    global deck_open
+    global deck_sensor_clear
+    global under_deck_sensor_clear
+    global vessel_warning_lights_on
+    global boat_light_0_green
+    global boat_light_1_green
+    
     if "/vessel/0/boat_light/0" in topic:
         if payload == 1 and not deck_open:
             log_error("deck is closed can not turn lights green")
@@ -294,8 +323,8 @@ def on_connect(client, userdata, flags, rc):
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
     payload = msg.payload.decode('utf-8')
-    color.write("\n#############################################\n\n", "KEYWORD")
-    print(f"{datetime.now()}\nTOPIC: {msg.topic} - PAYLOAD: {payload}")
+    print_line()
+    print(f'TOPIC: {msg.topic} - PAYLOAD: {payload}')
 
     check_valid_topic(msg.topic, payload)
     
