@@ -1,5 +1,6 @@
 import paho.mqtt.client as mqtt
 import os, sys
+import logging
 
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), "functions"))
 
@@ -28,7 +29,11 @@ def on_message(client, userdata, msg):
     print_seperator()
     print(f'TOPIC: {msg.topic} - PAYLOAD: {payload}')
 
-    topic_validator.validate(msg.topic, payload)
+    try:
+        topic_validator.validate(msg.topic, payload)
+    except Exception as e:
+        print("a")
+        logging.fatal(e, exc_info=True)
     
 
 client = mqtt.Client()

@@ -110,8 +110,8 @@ class TopicValidator:
 				log_error(f'invalid int payload {payload}')
 				return
 
-			#track_validator.validate(topic, payload)
-			#track_validator.validate(topic, payload)
+			self.track_validator.validate(topic, payload)
+			self.vessel_validator.validate(topic, payload)
 
 			found_lane_type = False
 			found_component_type = False
