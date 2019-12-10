@@ -7,7 +7,7 @@ sys.path.insert(1, os.path.join(os.path.dirname(__file__), "functions"))
 from TopicValidator import TopicValidator
 from cust_logging import print_seperator
 
-group_no = 8#input("Group no: ")
+group_no = input("Group no: ")
 
 topic_validator = TopicValidator()
 
