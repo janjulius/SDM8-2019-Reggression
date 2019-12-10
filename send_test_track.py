@@ -10,7 +10,7 @@ class Message:
     self.payload = payload
 
 messages =[Message(f"{group_no}/track/0/warning_light/0", 1),
-           Message(f"{group_no}/track/0/barrier/0", 0)]
+           Message(f"{group_no}/track/0/barrier/0", 1)]
 
 #broker = "test.mosquitto.org"
 broker = "62.210.180.72"
