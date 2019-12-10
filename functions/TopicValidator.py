@@ -76,7 +76,7 @@ class TopicValidator:
 	motorised = Topic("motorised", motorised_group_max_id, [traffic_light, motorised_sensor])
 	foot = Topic("foot", foot_group_max_id, [traffic_light, foot_sensor])
 	cycle = Topic("cycle", cycle_group_max_id, [traffic_light, cycle_sensor])
-	vessel = Topic("vessel", vessel_group_max_id, [vessel_sensor, warning_light, barrier, boat_light])
+	vessel = Topic("vessel", vessel_group_max_id, [vessel_sensor, warning_light, barrier, boat_light, deck])
 	track = Topic("track", track_group_max_id, [track_sensor, warning_light, barrier, train_light])
 
 	valid_parts = [motorised, foot, cycle, vessel, track]
@@ -87,7 +87,7 @@ class TopicValidator:
 	def validate(self, topic, payload):
 		split_topics = topic.split('/', -1)
 
-		del split_topics[0] # Group no    
+		del split_topics[0] # Team id
 			
 		if len(split_topics) == 4:
 			lane_type = split_topics[0]

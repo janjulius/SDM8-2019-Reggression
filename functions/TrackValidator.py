@@ -54,17 +54,6 @@ class TrackValidator:
 			self.track_west_clear = payload == 0;
 		elif "/track/0/barrier/0" in topic:
 			if payload == 1: 
-				if not self.crossing_clear or not self.track_east_clear or not self.track_west_clear:
-					log_warning(f'cannot open barrier, track not clear\n');
-					
-				# check if warning_lights off topic is sent 4 seconds later
-				Timer(4.5, check_statement, [
-					lambda: self.track_warning_lights_on,
-					"track warning_lights should be off",
-					topic
-					]).start()
-				
-			if payload == 0:
 				if not self.track_warning_lights_on:
 					log_warning(f'cannot close barrier, when warning lights are off');
 					
@@ -74,4 +63,16 @@ class TrackValidator:
 					"train light can be turned on",
 					topic
 					]).start()
+				
+			if payload == 0:
+				if not self.crossing_clear or not self.track_east_clear or not self.track_west_clear:
+					log_warning(f'cannot open barrier, track not clear');
+					
+				# check if warning_lights off topic is sent 4 seconds later
+				Timer(4.5, check_statement, [
+					lambda: self.track_warning_lights_on,
+					"track warning_lights should be off",
+					topic
+					]).start()
+				
 			self.track_barriers_open = payload == 1

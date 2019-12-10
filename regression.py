@@ -32,7 +32,6 @@ def on_message(client, userdata, msg):
     try:
         topic_validator.validate(msg.topic, payload)
     except Exception as e:
-        print("a")
         logging.fatal(e, exc_info=True)
     
 

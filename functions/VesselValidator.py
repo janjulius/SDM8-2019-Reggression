@@ -31,16 +31,6 @@ class VesselValidator:
 			self.deck_sensor_clear = payload == 0
 		elif "/vessel/0/barrier/0" in topic:
 			if payload == 1:
-				if self.deck_open:
-					log_warning("not allowed to open barriers, deck is still open");
-				# check if warning_lights off topic is sent 4 seconds later
-				Timer(4.5, check_statement, [
-					lambda: self.vessel_warning_lights_on,
-					"barriers have been opened, warning_light should be off",
-					topic
-					]).start()
-				
-			elif payload == 0:
 				if not self.vessel_warning_lights_on:
 					log_warning("not allowed to close barriers, warning_lights are not on")
 				if not self.deck_sensor_clear:
@@ -49,6 +39,15 @@ class VesselValidator:
 				Timer(4.5, check_statement, [
 					lambda: not self.deck_open,
 					"barriers have been closed, deck should open",
+					topic
+					]).start()
+			elif payload == 0:
+				if self.deck_open:
+					log_warning("not allowed to open barriers, deck is still open");
+				# check if warning_lights off topic is sent 4 seconds later
+				Timer(4.5, check_statement, [
+					lambda: self.vessel_warning_lights_on,
+					"barriers have been opened, warning_light should be off",
 					topic
 					]).start()
 			self.bridge_barriers_open = payload == 1
