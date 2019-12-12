@@ -95,4 +95,4 @@ class TrackValidator:
 					topic
 					]).start()
 				
-			self.track_barriers_open = payload == 1
+			self.track_barriers_open = payload == 0

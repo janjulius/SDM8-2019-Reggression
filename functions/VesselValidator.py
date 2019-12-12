@@ -73,7 +73,7 @@ class VesselValidator:
 					topic
 					]).start()
 					
-			self.bridge_barriers_open = payload == 1
+			self.bridge_barriers_open = payload == 0
 			
 		elif "/vessel/0/sensor/1" in topic:
 			self.under_deck_sensor_clear = payload == 0
@@ -85,7 +85,7 @@ class VesselValidator:
 					log_warning("not allowed to open deck when barriers are open")
 					
 				if not self.deck_sensor_clear:
-					log_warning("not allowed to open deck when it`s not cleared")
+					log_warning("not allowed to open deck when its not cleared")
 					
 				if not self.vessel_warning_lights_on:
 					log_warning("not allowed to open deck when warning_lights are off")
