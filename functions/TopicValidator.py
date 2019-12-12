@@ -2,24 +2,36 @@ from VesselValidator import VesselValidator
 from TrackValidator import TrackValidator
 from cust_logging import log_error, log_message, log_warning
 
+# Topic class
+# Resembles a topic from the protocol
+# Has lane type, max group id of lane type and a list of components
 class Topic:
     def __init__(self, lane_type, max_group_id, components):
         self.lane_type = lane_type
         self.max_group_id = max_group_id
         self.components = components
 
+# Odd Rules class
+# Resembles odd rules where (in all cases) a group has more than 2 sensors 
+# Has the parent group id and new amount of sensors (max component id)
 class Odd_Rules:
     def __init__(self, group_id, max):
         self.group_id = group_id
         self.max = max
 
+# Component class
+# Resembles a component
+# Has a component type, max component id, payload and possibule odd rules
 class Component:
-    def __init__(self, value, max_component_id, max_payload, odd_rules = None):
-        self.value = value
+    def __init__(self, component_type, max_component_id, max_payload, odd_rules = None):
+        self.component_type = component_type
         self.max_component_id = max_component_id
         self.max_payload = max_payload
         self.odd_rules = odd_rules   
 
+# Topic Validator class
+# Resembles a topic validator
+# Check if the current topic is valid and is permitted to be sent
 class TopicValidator:
 	sensor_max_payload = 1
 
@@ -84,17 +96,22 @@ class TopicValidator:
 	vessel_validator = VesselValidator()
 	track_validator = TrackValidator()
 	
+	# Validates topic
 	def validate(self, topic, payload):
 		split_topics = topic.split('/', -1)
 
-		del split_topics[0] # Team id
+		# Team id
+		del split_topics[0] 
 			
 		if len(split_topics) == 4:
+		
+			# Get the parts of the topic
 			lane_type = split_topics[0]
 			group_id = split_topics[1]
 			component_type = split_topics[2]
 			component_id = split_topics[3]
 			
+			# Check if all numbers are ints
 			group_id, is_int = self.intTryParse(group_id)
 			if not is_int:
 				log_error(f'invalid int group_id {group_id}')
@@ -110,14 +127,16 @@ class TopicValidator:
 				log_error(f'invalid int payload {payload}')
 				return
 
+			# Check if message is permitted (warning)
 			self.track_validator.validate(topic, payload)
 			self.vessel_validator.validate(topic, payload)
 
 			found_lane_type = False
 			found_component_type = False
 
-			# Check lane_type
+			# Search for part base on lane_type
 			for valid_part in self.valid_parts:
+				# Check lane_type
 				if valid_part.lane_type == lane_type: 
 					found_lane_type = True
 					
@@ -126,7 +145,7 @@ class TopicValidator:
 
 						# Check component_type
 						for component in valid_part.components:
-							if component.value == component_type:
+							if component.component_type == component_type:
 								found_component_type = True
 
 								# Check for odd rules
@@ -143,22 +162,22 @@ class TopicValidator:
 									else:
 										log_error(f'invalid payload {payload}\nMAX: {component.max_payload}')
 								else:
-									# invalid component id
+									# Invalid component id
 									log_error(f'invalid component_id {component_id}\nMAX: {component.max_component_id}')
 									
-						# not found error
+						# Not found error
 						if not found_component_type:
 							valid_component_types = []
 							for component in valid_part.components:
-								valid_component_types.append(component.value)
+								valid_component_types.append(component.component_type)
 							valid_components_string = ", ".join(valid_component_types)
 							
 							log_error(f'invalid component_type {component_type}\nALLOWED: {valid_components_string}')
 					else:
-						# invalid group_id
+						# Invalid group_id
 						log_error(f'invalid group_id {group_id}\nMAX: {valid_part.max_group_id}')
 						
-			# not found error
+			# Not found error
 			if not found_lane_type:
 				valid_lanes = []
 				for valid_part in valid_parts:
@@ -170,6 +189,7 @@ class TopicValidator:
 		else:
 			log_error(f'invalid topic length {len(split_topics)}')   
 	
+	# Try parse int, returns success
 	def intTryParse(self, value):
 		try:
 			return int(value), True
