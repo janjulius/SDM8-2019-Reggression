@@ -30,7 +30,7 @@ class TrackValidator:
 					log_warning(f'not allowed to turn on warning_light when no train is coming')
 
 				# Check if barriers close topic is sent 5 seconds later
-				Timer(5,5, check_statement, [
+				Timer(5.5, check_statement, [
 					lambda: self.track_barriers_open,
 					"warning lights are on, barrier should go down",
 					topic
